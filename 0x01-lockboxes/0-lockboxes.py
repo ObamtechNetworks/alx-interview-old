@@ -1,4 +1,7 @@
 #!/usr/bin/python3
+"""
+Contains a function that checks if all boxes are unlockable
+"""
 
 
 def canUnlockAll(boxes):
