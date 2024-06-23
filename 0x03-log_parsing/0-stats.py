@@ -33,6 +33,8 @@ try:
             total_size += file_size
             if status_code in status_codes:
                 status_codes[status_code] += 1
+        else:
+            print(f"Unexpected line: {line}")  # output for unexp lines
         line_count += 1
         if line_count % 10 == 0:
             print_stats(total_size, status_codes)
