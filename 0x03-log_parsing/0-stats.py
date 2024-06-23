@@ -29,7 +29,7 @@ line_count = 0
 try:
     for line in sys.stdin:
         status_code, file_size = parse_line(line)
-        if status_code and file_size:
+        if status_code is not None and file_size is not None:
             total_size += file_size
             if status_code in status_codes:
                 status_codes[status_code] += 1
