@@ -1,41 +1,71 @@
 #!/usr/bin/python3
-"""
-A script that reads stdin line by line and computes metrics:
-"""
-
+"""LOG PARSING"""
 import sys
-import re
+import signal
 
-lines_read = 0
-status_code_count = {}
-total_size = 0
+# Initialize the metrics
+total_file_size = 0
+status_codes_count = {
+    200: 0,
+    301: 0,
+    400: 0,
+    401: 0,
+    403: 0,
+    404: 0,
+    405: 0,
+    500: 0
+}
 
+
+def print_metrics():
+    """Print the metrics to stdout"""
+    print(f"File size: {total_file_size}")
+    for code in sorted(status_codes_count.keys()):
+        if status_codes_count[code] > 0:
+            print(f"{code}: {status_codes_count[code]}")
+
+
+def signal_handler(sig, frame):
+    """Handle the SIGINT signal (Ctrl+C)"""
+    print_metrics()
+    sys.exit(0)
+
+
+# Register the signal handler for SIGINT
+signal.signal(signal.SIGINT, signal_handler)
+
+line_count = 0
 
 try:
     for line in sys.stdin:
-        lines_read += 1
-        r = re.search(
-            '^\\d{1,3}.\\d{1,3}.\\d{1,3}.\\d{1,3}\\s-\\s\\[[\\d -:.]*\
-\\]\\s"GET\\s\\/projects\\/260\\sHTTP\\/1.1"\\s\\d{1,3}\\s\\d{1,4}$',
-            line)
-        if r:
-            status = re.search("(?<=1.1\" )\\d{1,3}", line)
-            file_size = re.search("\\d{1,4}$", line)
-            if status_code_count.get(status.group()):
-                status_code_count[status.group()] = status_code_count.get(
-                    status.group()) + 1
-            else:
-                status_code_count[status.group()] = 1
-            total_size = total_size + int(file_size.group())
-        else:
+        line_count += 1
+
+        parts = line.split()
+        if len(parts) < 7:
             continue
 
-        if lines_read % 10 == 0:
-            print(f"File size: {total_size}")
-            for status in sorted(status_code_count):
-                print(f"{status}: {status_code_count[status]}")
+        # Extract file size
+        try:
+            file_size = int(parts[-1])
+            total_file_size += file_size
+        except ValueError:
+            continue
 
-finally:
-    print(f"File size: {total_size}")
-    for status in sorted(status_code_count):
-        print(f"{status}: {status_code_count[status]}")
+        # Extract status code
+        try:
+            status_code = int(parts[-2])
+            if status_code in status_codes_count:
+                status_codes_count[status_code] += 1
+        except ValueError:
+            continue
+
+        # Print metrics after every 10 lines
+        if line_count % 10 == 0:
+            print_metrics()
+
+except KeyboardInterrupt:
+    print_metrics()
+    raise
+
+# Print metrics for the remaining lines if any
+print_metrics()
