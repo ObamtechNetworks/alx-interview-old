@@ -1,46 +1,57 @@
 #!/usr/bin/python3
-"""Log parsing in python"""
+"""
+A script that reads stdin line by line and computes metrics:
+"""
+
 import sys
+import re
 
-
-def print_stats(total_size, status_codes):
-    print(f"File size: {total_size}")
-    for code in sorted(status_codes.keys()):
-        if status_codes[code] > 0:
-            print(f"{code}: {status_codes[code]}")
-
-
-def parse_line(line):
-    parts = line.split()
-    if len(parts) != 9:
-        return None, None
-    try:
-        status_code = int(parts[-2])
-        file_size = int(parts[-1])
-        return status_code, file_size
-    except ValueError:
-        return None, None
-
-
+# Initialize the number of lines read, a dictionary to count status codes,
+# and the total file size
+lines_read = 0
+status_code_count = {}
 total_size = 0
-status_codes = {200: 0, 301: 0, 400: 0, 401: 0, 403: 0, 404: 0, 405: 0, 500: 0}
-line_count = 0
 
 try:
     for line in sys.stdin:
-        status_code, file_size = parse_line(line)
-        if status_code is not None and file_size is not None:
-            total_size += file_size
-            if status_code in status_codes:
-                status_codes[status_code] += 1
-        else:
-            print(f"Unexpected line: {line}")  # output for unexp lines
-        line_count += 1
-        if line_count % 10 == 0:
-            print_stats(total_size, status_codes)
+        lines_read += 1
+
+        # Regular expression to match the line format
+        line_match = re.search(
+            r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\s-\s\[[\d -:.]*\]\s'
+            r'"GET\s\/projects\/260\sHTTP\/1.1"\s\d{3}\s\d+$',
+            line
+        )
+
+        if line_match:
+            # Extract the status code and file size using regular expressions
+            status_match = re.search(r'(?<=HTTP\/1.1" )\d{3}', line)
+            file_size_match = re.search(r'\d+$', line)
+
+            if status_match and file_size_match:
+                status_code = status_match.group()
+                file_size = int(file_size_match.group())
+
+                # Update the count of the status code
+                status_code_count[status_code] = (
+                    status_code_count.get(status_code, 0) + 1
+                )
+
+                # Add the file size to the total size
+                total_size += file_size
+
+        # Every 10 lines, print the statistics
+        if lines_read % 10 == 0:
+            print(f"File size: {total_size}")
+            for status in sorted(status_code_count):
+                print(f"{status}: {status_code_count[status]}")
 
 except KeyboardInterrupt:
-    print_stats(total_size, status_codes)
-    raise
+    # Handle keyboard interruption gracefully
+    pass
 
-print_stats(total_size, status_codes)
+finally:
+    # Print the final statistics when the script ends
+    print(f"File size: {total_size}")
+    for status in sorted(status_code_count):
+        print(f"{status}: {status_code_count[status]}")
